@@ -1,0 +1,100 @@
+name: Convert Rules to Sing-box Format
+
+on:
+  push:
+    paths:
+      - 'rule/Surge/**'
+      - '.github/workflows/convert-to-singbox.yml'
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert-rules:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Download and install sing-box
+        run: |
+          cd /tmp
+          wget -q https://github.com/SagerNet/sing-box/releases/download/v1.12.17/sing-box-1.12.17-linux-amd64.tar.gz
+          tar xz -f sing-box-1.12.17-linux-amd64.tar.gz
+          cd sing-box-1.12.17-linux-amd64
+          chmod +x sing-box
+          sudo mv sing-box /usr/local/bin/sing-box
+          sing-box version
+
+      - name: Clone rule-converter repository
+        run: |
+          cd /tmp
+          git clone https://github.com/K-Lrize/rule-converter.git
+          cd rule-converter
+          go build -o rule-converter ./cmd/rule-converter
+
+      - name: Create output directories
+        run: |
+          mkdir -p rule/SingBox
+
+      - name: Convert rules to Sing-box format
+        run: |
+          CONVERTER="/tmp/rule-converter/rule-converter"
+          INPUT_DIR="rule/Surge"
+          JSON_DIR="rule/SingBox"
+          SRS_DIR="rule/SingBox"
+
+          # 批量转换所有规则文件
+          $CONVERTER -batch \
+            -input-dir "$INPUT_DIR" \
+            -json-dir "$JSON_DIR" \
+            -srs-dir "$SRS_DIR" \
+            -compile
+
+      - name: Check if rules were generated
+        run: |
+          if [ -z "$(ls -A rule/SingBox/)" ]; then
+            echo "No rules were generated"
+            exit 1
+          fi
+          echo "Generated files:"
+          find rule/SingBox -type f -name "*.json" -o -name "*.srs" | head -20
+
+      - name: Create index file
+        run: |
+          cat > rule/SingBox/README.md << EOF
+          # Sing-box Rules
+
+          sing-box 格式规则集。
+
+          ## 文件格式
+
+          - `.json` - JSON 格式规则
+          - `.srs` - SRS 二进制格式规则
+
+          更新时间: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          EOF
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if [ -n "$(git status --porcelain rule/SingBox/)" ]; then
+            git add rule/SingBox/
+            git commit -m "chore: update sing-box rules format $(date -u +'%Y-%m-%d %H:%M:%S')"
+            git push
+          else
+            echo "No changes to commit"
+          fi
