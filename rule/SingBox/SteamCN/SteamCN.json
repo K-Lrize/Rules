@@ -2,7 +2,7 @@
   "version": 3,
   "rules": [
     {
-      "domain": [
+      "domain_suffix": [
         "csgo.wmsj.cn",
         "dl.steam.clngaa.com",
         "dl.steam.ksyna.com",
@@ -14,9 +14,7 @@
         "steampowered.com.8686c.com",
         "steamstatic.com.8686c.com",
         "wmsjsteam.com",
-        "xz.pphimalayanrt.com"
-      ],
-      "domain_suffix": [
+        "xz.pphimalayanrt.com",
         "cm.steampowered.com",
         "steamchina.com",
         "steamcontent.com",
